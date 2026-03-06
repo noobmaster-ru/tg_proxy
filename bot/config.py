@@ -50,6 +50,7 @@ def load_settings() -> Settings:
     if subscription_days <= 0:
         raise ValueError("SUBSCRIPTION_DAYS must be positive")
 
+
     subscription_price_xtr = int(os.getenv("SUBSCRIPTION_PRICE_XTR", "200"))
     if subscription_price_xtr <= 0:
         raise ValueError("SUBSCRIPTION_PRICE_XTR must be positive")
