@@ -25,8 +25,21 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf "%s" "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          KEY_FILE=~/.ssh/id_deploy
+
+          # Support raw key, escaped "\n" key, or base64-encoded key in the same secret.
+          if echo "$SSH_PRIVATE_KEY" | grep -q "BEGIN OPENSSH PRIVATE KEY"; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$KEY_FILE"
+          elif echo "$SSH_PRIVATE_KEY" | grep -q "BEGIN RSA PRIVATE KEY"; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$KEY_FILE"
+          elif echo "$SSH_PRIVATE_KEY" | grep -q "\\\\n"; then
+            printf '%s' "$SSH_PRIVATE_KEY" | sed 's/\\\\n/\n/g' | tr -d '\r' > "$KEY_FILE"
+          else
+            printf '%s' "$SSH_PRIVATE_KEY" | tr -d '\r' | base64 -d > "$KEY_FILE"
+          fi
+
+          chmod 600 "$KEY_FILE"
+          ssh-keygen -y -f "$KEY_FILE" >/dev/null
 
       - name: Add host to known_hosts
         env:
@@ -43,8 +56,8 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           tar --exclude='.git' --exclude='.github' -czf /tmp/tg_proxy.tar.gz .
-          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
-          scp -P "$DEPLOY_PORT" /tmp/tg_proxy.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/tg_proxy.tar.gz"
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
+          scp -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -P "$DEPLOY_PORT" /tmp/tg_proxy.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/tg_proxy.tar.gz"
 
       - name: Deploy on server
         env:
@@ -53,7 +66,7 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "\
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "\
             set -euo pipefail; \
             mkdir -p '$DEPLOY_PATH'; \
             tar -xzf '$DEPLOY_PATH/tg_proxy.tar.gz' -C '$DEPLOY_PATH'; \
