@@ -1,4 +1,4 @@
-name: CD
+name: Deploy 
 
 on:
   workflow_run:
@@ -73,7 +73,4 @@ jobs:
             rm -f '$DEPLOY_PATH/tg_proxy.tar.gz'; \
             cd '$DEPLOY_PATH'; \
             docker compose up --build -d; \
-            cd '$DEPLOY_PATH/mtproxy'; \
-            docker compose pull; \
-            docker compose up -d; \
           "
