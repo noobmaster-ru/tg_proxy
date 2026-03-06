@@ -6,20 +6,21 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 
-def _parse_admin_ids(raw_value: str) -> set[int]:
-    admin_ids: set[int] = set()
+def _parse_int_set(raw_value: str) -> set[int]:
+    result: set[int] = set()
     for raw_id in raw_value.split(","):
         raw_id = raw_id.strip()
         if not raw_id:
             continue
-        admin_ids.add(int(raw_id))
-    return admin_ids
+        result.add(int(raw_id))
+    return result
 
 
 @dataclass(frozen=True)
 class Settings:
     bot_token: str
     admin_ids: set[int]
+    free_user_ids: set[int]
     database_path: str
     subscription_days: int
     subscription_price_xtr: int
@@ -37,9 +38,11 @@ def load_settings() -> Settings:
     if not admin_raw:
         raise ValueError("ADMIN_IDS is required")
 
-    admin_ids = _parse_admin_ids(admin_raw)
+    admin_ids = _parse_int_set(admin_raw)
     if not admin_ids:
         raise ValueError("ADMIN_IDS must contain at least one numeric Telegram user id")
+
+    free_user_ids = _parse_int_set(os.getenv("FREE_USER_IDS", "694144143,547299317"))
 
     database_path = os.getenv("DATABASE_PATH", "data/subscriptions.db").strip() or "data/subscriptions.db"
 
@@ -56,6 +59,7 @@ def load_settings() -> Settings:
     return Settings(
         bot_token=bot_token,
         admin_ids=admin_ids,
+        free_user_ids=free_user_ids,
         database_path=database_path,
         subscription_days=subscription_days,
         subscription_price_xtr=subscription_price_xtr,

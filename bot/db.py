@@ -54,6 +54,16 @@ class Database:
                 paid_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS bank_transfer_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                reviewed_by INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
             """
         )
         await self._conn.commit()
@@ -84,6 +94,17 @@ class Database:
         )
         await self.conn.commit()
 
+    async def _ensure_user_exists(self, user_id: int) -> None:
+        now_iso = _utcnow().isoformat()
+        await self.conn.execute(
+            """
+            INSERT INTO users (user_id, username, first_name, created_at, updated_at)
+            VALUES (?, NULL, NULL, ?, ?)
+            ON CONFLICT(user_id) DO NOTHING
+            """,
+            (user_id, now_iso, now_iso),
+        )
+
     async def get_subscription_expiry(self, user_id: int) -> datetime | None:
         cursor = await self.conn.execute(
             "SELECT expires_at FROM subscriptions WHERE user_id = ?",
@@ -108,14 +129,7 @@ class Database:
         now = _utcnow()
         now_iso = now.isoformat()
 
-        await self.conn.execute(
-            """
-            INSERT INTO users (user_id, username, first_name, created_at, updated_at)
-            VALUES (?, NULL, NULL, ?, ?)
-            ON CONFLICT(user_id) DO NOTHING
-            """,
-            (user_id, now_iso, now_iso),
-        )
+        await self._ensure_user_exists(user_id)
 
         current_expiry = await self.get_subscription_expiry(user_id)
         base = current_expiry if current_expiry and current_expiry > now else now
@@ -199,3 +213,89 @@ class Database:
             ),
         )
         await self.conn.commit()
+
+    async def get_pending_bank_transfer_request(self, user_id: int) -> int | None:
+        cursor = await self.conn.execute(
+            """
+            SELECT id
+            FROM bank_transfer_requests
+            WHERE user_id = ? AND status = 'pending'
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+        row = await cursor.fetchone()
+        await cursor.close()
+        if row is None:
+            return None
+        return int(row["id"])
+
+    async def create_bank_transfer_request(self, user_id: int) -> int:
+        await self._ensure_user_exists(user_id)
+        now_iso = _utcnow().isoformat()
+        cursor = await self.conn.execute(
+            """
+            INSERT INTO bank_transfer_requests (user_id, status, reviewed_by, created_at, updated_at)
+            VALUES (?, 'pending', NULL, ?, ?)
+            """,
+            (user_id, now_iso, now_iso),
+        )
+        await self.conn.commit()
+        return int(cursor.lastrowid)
+
+    async def approve_bank_transfer_request(self, request_id: int, admin_id: int) -> tuple[int, bool] | None:
+        cursor = await self.conn.execute(
+            "SELECT user_id, status FROM bank_transfer_requests WHERE id = ?",
+            (request_id,),
+        )
+        row = await cursor.fetchone()
+        await cursor.close()
+        if row is None:
+            return None
+
+        if row["status"] != "pending":
+            return int(row["user_id"]), False
+
+        now_iso = _utcnow().isoformat()
+        cursor = await self.conn.execute(
+            """
+            UPDATE bank_transfer_requests
+            SET status = 'approved',
+                reviewed_by = ?,
+                updated_at = ?
+            WHERE id = ? AND status = 'pending'
+            """,
+            (admin_id, now_iso, request_id),
+        )
+        updated_rows = cursor.rowcount
+        await self.conn.commit()
+        return int(row["user_id"]), updated_rows > 0
+
+    async def reject_bank_transfer_request(self, request_id: int, admin_id: int) -> tuple[int, bool] | None:
+        cursor = await self.conn.execute(
+            "SELECT user_id, status FROM bank_transfer_requests WHERE id = ?",
+            (request_id,),
+        )
+        row = await cursor.fetchone()
+        await cursor.close()
+        if row is None:
+            return None
+
+        if row["status"] != "pending":
+            return int(row["user_id"]), False
+
+        now_iso = _utcnow().isoformat()
+        cursor = await self.conn.execute(
+            """
+            UPDATE bank_transfer_requests
+            SET status = 'rejected',
+                reviewed_by = ?,
+                updated_at = ?
+            WHERE id = ? AND status = 'pending'
+            """,
+            (admin_id, now_iso, request_id),
+        )
+        updated_rows = cursor.rowcount
+        await self.conn.commit()
+        return int(row["user_id"]), updated_rows > 0
