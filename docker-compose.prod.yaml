@@ -1,0 +1,10 @@
+services:
+  postgres:
+    restart: always
+
+  bot:
+    restart: always
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

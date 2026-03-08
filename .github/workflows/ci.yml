@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   checks:
@@ -25,7 +27,13 @@ jobs:
       - name: Install project
         run: |
           python -m pip install --upgrade pip
-          pip install .
+          pip install ".[dev]"
+
+      - name: Run lint
+        run: make lint
 
       - name: Compile check
-        run: python -m compileall bot
+        run: python -m compileall axiomai_proxy
+
+      - name: Run tests
+        run: pytest -q

@@ -5,8 +5,8 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-COPY bot ./bot
+COPY pyproject.toml README.md alembic.ini ./
+COPY axiomai_proxy ./axiomai_proxy
 RUN pip install --no-cache-dir .
 
-CMD ["python", "-m", "bot.main"]
+CMD ["python", "-m", "axiomai_proxy.tgbot"]

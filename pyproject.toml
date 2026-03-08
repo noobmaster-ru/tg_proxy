@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tg-proxy-bot"
-version = "0.1.0"
+name = "axiomai-proxy-bot"
+version = "0.2.0"
 description = "Telegram bot for distributing private MTProto proxy access by subscription"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,8 +13,20 @@ dependencies = [
   "sqlalchemy>=2.0,<3",
   "psycopg[binary]>=3.1,<4",
   "python-dotenv>=1.0,<2",
+  "alembic>=1.13,<2",
 ]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9",
+  "ruff>=0.9,<1",
+  "mypy>=1.12,<2",
+]
+
+[project.scripts]
+tg-proxy-bot = "axiomai_proxy.tgbot.__main__:main"
+tg-proxy-observer = "axiomai_proxy.observer.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["bot*"]
+include = ["axiomai_proxy*"]
