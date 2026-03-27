@@ -57,10 +57,28 @@ docker compose up --build -d
 Если используешь `/rotateproxy`, боту нужен доступ к Docker socket хоста
 (`/var/run/docker.sock` уже примонтирован в `docker-compose.yaml`).
 
+## Прод-запуск (без контейнера PostgreSQL)
+
+`docker-compose.prod.yaml` — самостоятельный файл для продакшена (только `bot`, `observer`, `migrations`).
+Подключение к PostgreSQL берется из `.env` (внешняя БД).
+
+Запуск:
+
+```bash
+docker compose -f docker-compose.prod.yaml run --rm migrations
+docker compose -f docker-compose.prod.yaml up --build -d bot observer
+```
+
 ## Миграции
 
 ```bash
 alembic upgrade head
+```
+
+В проде миграции запускаются отдельным сервисом:
+
+```bash
+docker compose -f docker-compose.prod.yaml run --rm migrations
 ```
 
 ## Админ-команды

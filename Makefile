@@ -1,4 +1,4 @@
-.PHONY: lint install run-bot run-observer migrate upgrade compile test docker-up docker-down
+.PHONY: lint install run-bot run-observer migrate upgrade compile test docker-up docker-up-prod docker-down
 
 lint:
 	ruff check axiomai_proxy --fix
@@ -28,6 +28,10 @@ test:
 
 docker-up:
 	docker compose up --build -d
+
+docker-up-prod:
+	docker compose -f docker-compose.prod.yaml run --rm migrations
+	docker compose -f docker-compose.prod.yaml up --build -d bot observer
 
 docker-down:
 	docker compose down

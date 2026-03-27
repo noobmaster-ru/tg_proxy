@@ -72,5 +72,6 @@ jobs:
             tar -xzf '$DEPLOY_PATH/tg_proxy.tar.gz' -C '$DEPLOY_PATH'; \
             rm -f '$DEPLOY_PATH/tg_proxy.tar.gz'; \
             cd '$DEPLOY_PATH'; \
-            docker compose up --build -d; \
+            docker compose -f docker-compose.prod.yaml run --rm migrations; \
+            docker compose -f docker-compose.prod.yaml up --build -d bot observer; \
           "
