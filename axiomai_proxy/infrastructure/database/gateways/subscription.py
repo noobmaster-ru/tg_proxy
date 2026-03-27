@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from axiomai_proxy.domain.models import BankTransferDecision
+from axiomai_proxy.domain.models import BankTransferDecision, SubscriptionNotificationTarget
 from axiomai_proxy.infrastructure.database.gateways.base import BaseGateway
 
 
@@ -263,3 +263,61 @@ class PostgresSubscriptionGateway(BaseGateway):
                 return None
 
             return BankTransferDecision(user_id=int(existing_user_id), applied_now=False)
+
+    async def list_active_subscription_user_ids(self) -> list[int]:
+        now = _utcnow()
+        async with self._engine.connect() as connection:
+            result = await connection.execute(
+                text("SELECT user_id FROM subscriptions WHERE expires_at > :now"),
+                {"now": now},
+            )
+            return [int(row[0]) for row in result.fetchall()]
+
+    async def claim_expiring_24h_notifications(self) -> list[SubscriptionNotificationTarget]:
+        now = _utcnow()
+        horizon = now + timedelta(hours=24)
+
+        async with self._engine.begin() as connection:
+            result = await connection.execute(
+                text(
+                    """
+                    INSERT INTO subscription_notifications (user_id, notification_type, expires_at, sent_at)
+                    SELECT s.user_id, 'expiring_24h', s.expires_at, :now
+                    FROM subscriptions s
+                    WHERE s.expires_at > :now AND s.expires_at <= :horizon
+                    ON CONFLICT (user_id, notification_type, expires_at) DO NOTHING
+                    RETURNING user_id, expires_at
+                    """
+                ),
+                {"now": now, "horizon": horizon},
+            )
+            rows = result.fetchall()
+
+        return [
+            SubscriptionNotificationTarget(user_id=int(row[0]), expires_at=row[1])
+            for row in rows
+        ]
+
+    async def claim_expired_notifications(self) -> list[SubscriptionNotificationTarget]:
+        now = _utcnow()
+
+        async with self._engine.begin() as connection:
+            result = await connection.execute(
+                text(
+                    """
+                    INSERT INTO subscription_notifications (user_id, notification_type, expires_at, sent_at)
+                    SELECT s.user_id, 'expired', s.expires_at, :now
+                    FROM subscriptions s
+                    WHERE s.expires_at <= :now
+                    ON CONFLICT (user_id, notification_type, expires_at) DO NOTHING
+                    RETURNING user_id, expires_at
+                    """
+                ),
+                {"now": now},
+            )
+            rows = result.fetchall()
+
+        return [
+            SubscriptionNotificationTarget(user_id=int(row[0]), expires_at=row[1])
+            for row in rows
+        ]

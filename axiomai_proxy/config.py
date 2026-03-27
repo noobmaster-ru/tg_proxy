@@ -17,6 +17,10 @@ def _parse_int_set(raw_value: str) -> set[int]:
     return result
 
 
+def _parse_bool(raw_value: str) -> bool:
+    return raw_value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 @dataclass(frozen=True)
 class Config:
     bot_token: str
@@ -29,6 +33,11 @@ class Config:
     support_contact: str
     bank_card_number: str
     bank_phone_number: str
+    proxy_server: str
+    proxy_port: int
+    proxy_container_name: str
+    proxy_rotation_enabled: bool
+    observer_poll_interval_seconds: int
 
 
 def _build_postgres_dsn(host: str, port: int, user: str, password: str, dbname: str) -> str:
@@ -99,6 +108,22 @@ def load_config() -> Config:
     if not bank_phone_number:
         raise ValueError("BANK_PHONE_NUMBER is required")
 
+    proxy_server = os.getenv("PROXY_SERVER", "").strip()
+    proxy_port = int(os.getenv("PROXY_PORT", "9443"))
+    proxy_container_name = os.getenv("PROXY_CONTAINER_NAME", "mtproto-proxy-3").strip()
+    proxy_rotation_enabled = _parse_bool(os.getenv("PROXY_ROTATION_ENABLED", "false"))
+
+    if proxy_port <= 0:
+        raise ValueError("PROXY_PORT must be positive")
+    if not proxy_container_name:
+        raise ValueError("PROXY_CONTAINER_NAME is required")
+    if proxy_rotation_enabled and not proxy_server:
+        raise ValueError("PROXY_SERVER is required when PROXY_ROTATION_ENABLED=true")
+
+    observer_poll_interval_seconds = int(os.getenv("OBSERVER_POLL_INTERVAL_SECONDS", "300"))
+    if observer_poll_interval_seconds <= 0:
+        raise ValueError("OBSERVER_POLL_INTERVAL_SECONDS must be positive")
+
     return Config(
         bot_token=bot_token,
         admin_ids=admin_ids,
@@ -110,4 +135,9 @@ def load_config() -> Config:
         support_contact=support_contact,
         bank_card_number=bank_card_number,
         bank_phone_number=bank_phone_number,
+        proxy_server=proxy_server,
+        proxy_port=proxy_port,
+        proxy_container_name=proxy_container_name,
+        proxy_rotation_enabled=proxy_rotation_enabled,
+        observer_poll_interval_seconds=observer_poll_interval_seconds,
     )

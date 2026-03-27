@@ -26,3 +26,9 @@ class ApprovedBankTransfer:
     user_id: int
     applied_now: bool
     new_expiry: datetime | None
+
+
+@dataclass(frozen=True)
+class SubscriptionNotificationTarget:
+    user_id: int
+    expires_at: datetime

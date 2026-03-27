@@ -20,6 +20,20 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  observer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "axiomai_proxy.observer"]
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy

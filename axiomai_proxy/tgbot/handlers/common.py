@@ -38,3 +38,20 @@ async def send_proxy_link(bot: Bot, container: AppContainer, chat_id: int) -> bo
 
     await bot.send_message(chat_id, text.proxy_link_message(proxy_link))
     return True
+
+
+async def broadcast_proxy_link_to_active_subscribers(bot: Bot, container: AppContainer) -> int:
+    proxy_link = await container.interactors.get_proxy_link.execute()
+    if not proxy_link:
+        return 0
+
+    active_user_ids = set(await container.interactors.list_active_subscription_user_ids.execute())
+
+    sent_count = 0
+    for user_id in active_user_ids:
+        try:
+            await bot.send_message(user_id, text.proxy_rotated_broadcast_message(proxy_link))
+            sent_count += 1
+        except Exception:
+            logging.exception("Не удалось отправить новую ссылку пользователю %s", user_id)
+    return sent_count

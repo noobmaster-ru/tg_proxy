@@ -164,4 +164,6 @@ def build_router(container: AppContainer) -> Router:
             ),
         )
 
+        await send_proxy_link(bot, container, message.chat.id)
+
     return router

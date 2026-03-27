@@ -26,6 +26,11 @@ Telegram-бот для продажи доступа к MTProto-прокси с 
 - `BANK_CARD_NUMBER`
 - `BANK_PHONE_NUMBER`
 - `SUPPORT_CONTACT`
+- `PROXY_ROTATION_ENABLED`
+- `PROXY_SERVER`
+- `PROXY_PORT` (для этого проекта держим `9443`)
+- `PROXY_CONTAINER_NAME`
+- `OBSERVER_POLL_INTERVAL_SECONDS`
 
 ## Локальный запуск
 
@@ -35,17 +40,32 @@ make install
 make run-bot
 ```
 
+Для автосообщений о подписке запусти observer:
+
+```bash
+make run-observer
+```
+
 ## Docker запуск
 
 ```bash
 docker compose up --build -d
 ```
 
+В Docker запускаются `bot` и `observer`.
+
+Если используешь `/rotateproxy`, боту нужен доступ к Docker socket хоста
+(`/var/run/docker.sock` уже примонтирован в `docker-compose.yaml`).
+
 ## Миграции
 
 ```bash
 alembic upgrade head
 ```
+
+## Админ-команды
+
+- `/rotateproxy` — создать новый `secret` для контейнера прокси, сохранить новую ссылку в БД и разослать её активным подписчикам.
 
 ## Как ограничивается доступ после окончания подписки
 

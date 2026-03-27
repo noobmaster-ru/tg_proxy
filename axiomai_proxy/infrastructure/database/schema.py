@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     updated_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_subscriptions_expires_at
+ON subscriptions (expires_at);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -39,4 +42,15 @@ CREATE TABLE IF NOT EXISTS bank_transfer_requests (
 
 CREATE INDEX IF NOT EXISTS idx_bank_transfer_requests_user_status
 ON bank_transfer_requests (user_id, status);
+
+CREATE TABLE IF NOT EXISTS subscription_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    notification_type TEXT NOT NULL CHECK (notification_type IN ('expiring_24h', 'expired')),
+    expires_at TIMESTAMPTZ NOT NULL,
+    sent_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_notifications_unique
+ON subscription_notifications (user_id, notification_type, expires_at);
 """

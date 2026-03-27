@@ -9,7 +9,11 @@ from axiomai_proxy.constants import CALLBACK_BANK_CONFIRM_PREFIX, CALLBACK_BANK_
 from axiomai_proxy.infrastructure.di import AppContainer
 from axiomai_proxy.infrastructure.telegram import text
 from axiomai_proxy.infrastructure.telegram.common import parse_request_id, validate_proxy_link
-from axiomai_proxy.tgbot.handlers.common import is_admin
+from axiomai_proxy.tgbot.handlers.common import (
+    broadcast_proxy_link_to_active_subscribers,
+    is_admin,
+    send_proxy_link,
+)
 
 
 def build_router(container: AppContainer) -> Router:
@@ -45,6 +49,7 @@ def build_router(container: AppContainer) -> Router:
             return
 
         await bot.send_message(approved.user_id, text.bank_transfer_confirmed_user(approved.new_expiry))
+        await send_proxy_link(bot, container, approved.user_id)
 
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
@@ -104,6 +109,32 @@ def build_router(container: AppContainer) -> Router:
 
         await container.interactors.set_proxy_link.execute(proxy_link)
         await message.answer(text.admin_proxy_updated_message())
+
+    @router.message(Command("rotateproxy"))
+    async def admin_rotate_proxy(message: Message, bot: Bot) -> None:
+        if message.from_user is None or not is_admin(container, message.from_user.id):
+            return
+
+        if container.proxy_secret_rotator is None:
+            await message.answer(text.admin_proxy_rotation_disabled_message())
+            return
+
+        await message.answer(text.admin_proxy_rotation_started_message())
+
+        try:
+            rotation_result = await container.proxy_secret_rotator.rotate()
+            await container.interactors.set_proxy_link.execute(rotation_result.proxy_link)
+        except Exception as error:
+            await message.answer(text.admin_proxy_rotation_failed_message(str(error)))
+            return
+
+        notified_count = await broadcast_proxy_link_to_active_subscribers(bot, container)
+        await message.answer(
+            text.admin_proxy_rotation_done_message(
+                proxy_link=rotation_result.proxy_link,
+                notified_count=notified_count,
+            )
+        )
 
     @router.message(Command("grant"))
     async def admin_grant_subscription(message: Message, command: CommandObject) -> None:

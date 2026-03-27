@@ -50,6 +50,7 @@ def help_message() -> str:
         f"{BUTTON_BANK_TRANSFER} — перевод на карту/СБП и подтверждение админом\n\n"
         "Команды админа:\n"
         "/setproxy <t.me или tg:// ссылка>\n"
+        "/rotateproxy — создать новый secret для контейнера прокси\n"
         "/grant <user_id> <days>\n"
         "/revoke <user_id>\n"
         "/check <user_id>"
@@ -149,6 +150,30 @@ def admin_usage_setproxy() -> str:
     return "Использование: /setproxy <https://t.me/proxy?...>"
 
 
+def admin_usage_rotateproxy() -> str:
+    return "Использование: /rotateproxy"
+
+
+def admin_proxy_rotation_disabled_message() -> str:
+    return "Ротация через Docker выключена. Включите PROXY_ROTATION_ENABLED=true и проверьте PROXY_SERVER."
+
+
+def admin_proxy_rotation_started_message() -> str:
+    return "Запускаю ротацию секрета прокси. Подождите 5-10 секунд."
+
+
+def admin_proxy_rotation_done_message(proxy_link: str, notified_count: int) -> str:
+    return (
+        "Новый secret применен и сохранен в БД.\n"
+        f"Новая ссылка: {proxy_link}\n"
+        f"Рассылка активным подписчикам: {notified_count}"
+    )
+
+
+def admin_proxy_rotation_failed_message(error: str) -> str:
+    return f"Не удалось выполнить ротацию proxy secret: {error}"
+
+
 def admin_invalid_proxy_message() -> str:
     return "Ссылка должна начинаться с https://t.me/proxy? или tg://proxy?"
 
@@ -191,3 +216,27 @@ def admin_check_message(user_id: int, state: SubscriptionState) -> str:
 
 def fallback_message() -> str:
     return f"Используйте кнопки меню: {BUTTON_GET_PROXY}, {BUTTON_SUB_STATUS}, {BUTTON_HELP}"
+
+
+def subscription_expiring_24h_message(expires_at: datetime) -> str:
+    return (
+        "Напоминание: ваша подписка на прокси закончится менее чем через 24 часа.\n"
+        f"Окончание: {expires_at.strftime('%Y-%m-%d %H:%M UTC')}.\n"
+        "Чтобы не потерять доступ, продлите подписку заранее."
+    )
+
+
+def subscription_expired_message(expires_at: datetime) -> str:
+    return (
+        "Ваша подписка на прокси истекла.\n"
+        f"Окончание было: {expires_at.strftime('%Y-%m-%d %H:%M UTC')}.\n"
+        "Оплатите подписку, чтобы снова получить доступ."
+    )
+
+
+def proxy_rotated_broadcast_message(proxy_link: str) -> str:
+    return (
+        "Внимание: ссылка прокси обновлена.\n"
+        "Подключитесь заново по новой ссылке:\n"
+        f"{proxy_link}"
+    )

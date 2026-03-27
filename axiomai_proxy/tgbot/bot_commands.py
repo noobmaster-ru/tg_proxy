@@ -11,5 +11,6 @@ async def set_bot_commands(bot: Bot) -> None:
             BotCommand(command="help", description="Справка"),
             BotCommand(command="support", description="Поддержка"),
             BotCommand(command="paysupport", description="Поддержка по оплате"),
+            BotCommand(command="rotateproxy", description="(admin) Сменить secret прокси"),
         ]
     )
